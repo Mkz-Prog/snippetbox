@@ -19,8 +19,12 @@ func snippetView(w http.ResponseWriter, r *http.Request) {
 
 func snippetCreate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		w.WriteHeader(405)
-		w.Write([]byte("Method not Allowed!"))
+		// w.Header()["Date"] = nil instead w.Header().Del()
+		// w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Allow", http.MethodPost)
+		// w.WriteHeader(405)
+		// w.Write([]byte("Method not Allowed!"))
+		http.Error(w, "Method not allowed!", http.StatusMethodNotAllowed)
 		return
 	}
 	w.Write([]byte("Create a new snippet..."))
