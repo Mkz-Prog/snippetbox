@@ -3,25 +3,27 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"fmt"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
+	"snippetbox.mkz.net/internal/models"
 )
 
 type application struct {
 	errorLog *log.Logger
 	infoLog  *log.Logger
+	snippets *models.SnippetModel
 }
 
 func main() {
 	_ = godotenv.Load()
 
 	pass := os.Getenv("DB_PASSWORD")
-    defaultDSN := fmt.Sprintf("web:%s@/snippetbox?parseTime=true", pass)
+	defaultDSN := fmt.Sprintf("web:%s@/snippetbox?parseTime=true", pass)
 
 	addr := flag.String("addr", ":4000", "HTTP network address")
 	dsn := flag.String("dsn", defaultDSN, "MySQL data source name")
@@ -41,6 +43,7 @@ func main() {
 	app := &application{
 		errorLog: errorLog,
 		infoLog:  infoLog,
+		snippets: &models.SnippetModel{DB: db},
 	}
 
 	srv := &http.Server{
