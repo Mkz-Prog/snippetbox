@@ -3,6 +3,9 @@
 
 {{define "main"}}
 <form action='/snippet/create' method='POST'>
+    {{range .Form.NonFieldErrors}}
+        <div class='error'>{{.}}</div>
+    {{end}}
     <div>
         <label>Title:</label>
         {{with .Form.FieldErrors.title}}

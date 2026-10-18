@@ -1,1 +1,33 @@
+# Environment variables
 .env
+.env.local
+.env.*.local
+!.env.example
+
+# Compiled binaries
+snippetbox
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binaries and coverage
+*.test
+*.out
+coverage.html
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# Agent metadata
+.antigravity/

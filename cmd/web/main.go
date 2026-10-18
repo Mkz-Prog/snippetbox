@@ -8,35 +8,53 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 	"snippetbox.mkz.net/internal/models"
 )
 
 type application struct {
 	errorLog      *log.Logger
 	infoLog       *log.Logger
-	snippets      *models.SnippetModel
+	snippets      models.SnippetModelInterface
 	templateCache map[string]*template.Template
-}
-
-func (app *application) logRequest(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		app.infoLog.Printf("%s - %s %s %s", r.RemoteAddr, r.Proto, r.Method, r.URL.RequestURI())
-		
-		next.ServeHTTP(w, r)
-	})
 }
 
 func main() {
 	_ = godotenv.Load()
 
-	pass := os.Getenv("DB_PASSWORD")
-	defaultDSN := fmt.Sprintf("web:%s@/snippetbox?parseTime=true", pass)
+	dsnEnv := os.Getenv("DATABASE_URL")
+	var defaultDSN string
+	if dsnEnv != "" {
+		defaultDSN = dsnEnv
+	} else {
+		pass := os.Getenv("DB_PASSWORD")
+		if pass == "" {
+			pass = "postgres"
+		}
+		user := os.Getenv("DB_USER")
+		if user == "" {
+			user = "postgres"
+		}
+		host := os.Getenv("DB_HOST")
+		if host == "" {
+			host = "localhost"
+		}
+		port := os.Getenv("DB_PORT")
+		if port == "" {
+			port = "5432"
+		}
+		dbname := os.Getenv("DB_NAME")
+		if dbname == "" {
+			dbname = "snippetbox"
+		}
+		defaultDSN = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, pass, host, port, dbname)
+	}
 
 	addr := flag.String("addr", ":4000", "HTTP network address")
-	dsn := flag.String("dsn", defaultDSN, "MySQL data source name")
+	dsn := flag.String("dsn", defaultDSN, "PostgreSQL data source name")
 
 	flag.Parse()
 
@@ -45,10 +63,10 @@ func main() {
 
 	db, err := openDB(*dsn)
 	if err != nil {
-		errorLog.Fatal(err)
+		errorLog.Printf("database connection warning: %v (using memory store fallback)", err)
+	} else {
+		defer db.Close()
 	}
-
-	defer db.Close()
 
 	templateCache, err := newTemplateCache()
 	if err != nil {
@@ -58,7 +76,7 @@ func main() {
 	app := &application{
 		errorLog:      errorLog,
 		infoLog:       infoLog,
-		snippets:      &models.SnippetModel{DB: db},
+		snippets:      models.NewSnippetModel(db),
 		templateCache: templateCache,
 	}
 
@@ -74,11 +92,17 @@ func main() {
 }
 
 func openDB(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("mysql", dsn)
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return nil, err
 	}
+
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(25)
+	db.SetConnMaxLifetime(5 * time.Minute)
+
 	if err = db.Ping(); err != nil {
+		_ = db.Close()
 		return nil, err
 	}
 	return db, nil

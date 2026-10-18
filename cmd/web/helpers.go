@@ -4,9 +4,21 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"runtime/debug"
 	"time"
 )
+
+func pathToUI() string {
+	for _, base := range []string{".", "../..", ".."} {
+		path := filepath.Join(base, "ui")
+		if fi, err := os.Stat(path); err == nil && fi.IsDir() {
+			return path
+		}
+	}
+	return "./ui"
+}
 
 func (app *application) serverError(w http.ResponseWriter, err error) {
 	trace := fmt.Sprintf("%s\n%s", err.Error(), debug.Stack())
@@ -25,7 +37,7 @@ func (app *application) newTemplateData(r *http.Request) *templateData {
 func (app *application) render(w http.ResponseWriter, status int, page string, data *templateData) {
 	ts, ok := app.templateCache[page]
 	if !ok {
-		err := fmt.Errorf("the template %s does not exists", page)
+		err := fmt.Errorf("the template %s does not exist", page)
 		app.serverError(w, err)
 		return
 	}
